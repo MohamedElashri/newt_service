@@ -323,8 +323,11 @@ install() {
     create_directories
     install_newt
     
-    # Configuration
-    if [[ "$1" == "--env" ]]; then
+    # Configuration - auto-detect environment variables
+    if [[ -n "$NEWT_CLIENT_ID" ]] && [[ -n "$NEWT_CLIENT_SECRET" ]] && [[ -n "$NEWT_ENDPOINT" ]]; then
+        log_info "Detected environment variables for configuration"
+        configure_from_env
+    elif [[ "$1" == "--env" ]]; then
         configure_from_env
     else
         configure_interactive
@@ -445,7 +448,7 @@ usage() {
     echo -e "  $0 ${GREEN}start${NC}                - Start service"
     echo -e "  $0 ${GREEN}stop${NC}                 - Stop service"
     echo ""
-    echo -e "${CYAN}Environment Variables (for --env mode):${NC}"
+    echo -e "${CYAN}Environment Variables (auto-detected or use --env):${NC}"
     echo -e "  ${YELLOW}NEWT_CLIENT_ID${NC}        - Client ID"
     echo -e "  ${YELLOW}NEWT_CLIENT_SECRET${NC}    - Client Secret"
     echo -e "  ${YELLOW}NEWT_ENDPOINT${NC}         - Endpoint URL"

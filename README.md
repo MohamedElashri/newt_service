@@ -4,10 +4,18 @@ Complete automation for running Newt Pangolin as a persistent Linux service with
 
 ## Quick Start
 
-### Installation (Interactive)
+### Installation Methods
+
+The script supports three installation methods:
+
+#### 1. Interactive Mode (Manual Entry)
+
+Download and run the script, then enter credentials when prompted:
 
 ```bash
-sudo bash newt-manager.sh install
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh -o newt-manager.sh
+chmod +x newt-manager.sh
+sudo ./newt-manager.sh install
 ```
 
 You'll be prompted to enter:
@@ -15,7 +23,24 @@ You'll be prompted to enter:
 - Client Secret
 - Endpoint
 
-### Installation (Environment Variables)
+#### 2. Environment Variables (Auto-Detected)
+
+The script automatically detects environment variables without needing any flags:
+
+```bash
+export NEWT_CLIENT_ID="your-client-id"
+export NEWT_CLIENT_SECRET="your-secret"
+export NEWT_ENDPOINT="your-endpoint"
+
+# One-liner installation
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
+```
+
+**Note:** Use `sudo -E` to preserve environment variables.
+
+#### 3. Environment Variables (Explicit Flag)
+
+Explicitly specify to use environment variables:
 
 ```bash
 export NEWT_CLIENT_ID="your-client-id"
@@ -25,11 +50,12 @@ export NEWT_ENDPOINT="your-endpoint"
 sudo -E bash newt-manager.sh install --env
 ```
 
-### Installation (One-liner)
+### Installation Priority
 
-```bash
-curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install --env
-```
+The script checks for configuration in this order:
+1. Environment variables (if set) - auto-detected
+2. `--env` flag (if provided)
+3. Interactive mode (if no environment variables)
 
 ## Commands
 
@@ -213,6 +239,18 @@ sudo chmod 600 /etc/newt/config
 sudo chown root:root /etc/newt/config
 ```
 
+### Environment variables not detected
+
+When using piped installation, ensure you use `sudo -E` to preserve environment variables:
+
+```bash
+# Wrong - environment variables won't be passed
+curl ... | sudo bash -s install
+
+# Correct - preserves environment variables
+curl ... | sudo -E bash -s install
+```
+
 ## Advanced Usage
 
 ### Running multiple instances
@@ -225,6 +263,27 @@ To run multiple newt instances with different configurations:
    - `SERVICE_FILE="/etc/systemd/system/newt2.service"`
    - `LOG_DIR="/var/log/newt2"`
 3. Install: `sudo bash newt-manager-2.sh install`
+
+### Automated deployment example
+
+For CI/CD or automated deployments:
+
+```bash
+#!/bin/bash
+# deploy-newt.sh
+
+# Load secrets from secure storage (e.g., Vault, AWS Secrets Manager)
+export NEWT_CLIENT_ID=$(get-secret newt/client-id)
+export NEWT_CLIENT_SECRET=$(get-secret newt/client-secret)
+export NEWT_ENDPOINT=$(get-secret newt/endpoint)
+
+# Deploy
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
+
+# Verify
+sleep 5
+systemctl is-active --quiet newt.service && echo "Deployment successful" || echo "Deployment failed"
+```
 
 ### Custom service options
 
@@ -278,8 +337,32 @@ node_systemd_unit_state{name="newt.service",state="active"}
 2. **Service User** - Runs as root by default, can be changed to dedicated user
 3. **Network Access** - Service requires internet connectivity
 4. **Logging** - Logs don't contain credentials but may contain connection info
+5. **Environment Variables** - When using environment variables, be cautious about command history
 
-To run as non-root user:
+### Best Practices
+
+To avoid storing credentials in shell history:
+
+```bash
+# Method 1: Use a separate script
+cat > /tmp/install-newt.sh <<'EOF'
+export NEWT_CLIENT_ID="your-client-id"
+export NEWT_CLIENT_SECRET="your-secret"
+export NEWT_ENDPOINT="your-endpoint"
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
+EOF
+bash /tmp/install-newt.sh
+rm /tmp/install-newt.sh
+
+# Method 2: Read from stdin
+read -sp "Client ID: " NEWT_CLIENT_ID && export NEWT_CLIENT_ID
+read -sp "Client Secret: " NEWT_CLIENT_SECRET && export NEWT_CLIENT_SECRET
+read -p "Endpoint: " NEWT_ENDPOINT && export NEWT_ENDPOINT
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
+```
+
+### Running as non-root user
+
 ```bash
 # Create user
 sudo useradd -r -s /bin/false newt-user
@@ -317,4 +400,47 @@ sudo chown -R newt-user:newt-user /var/log/newt
 ### openSUSE
 - Uses `zypper` for dependencies
 - Firewall rules might need adjustment
+
+## Examples
+
+### Quick test deployment
+
+```bash
+# Set variables
+export NEWT_CLIENT_ID="test-client"
+export NEWT_CLIENT_SECRET="test-secret"
+export NEWT_ENDPOINT="https://test.example.com"
+
+# Install
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
+
+# Check status
+sudo systemctl status newt
+
+# View logs
+sudo journalctl -u newt -f
+```
+
+### Production deployment
+
+```bash
+# Download script first for review
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh -o newt-manager.sh
+
+# Review the script
+less newt-manager.sh
+
+# Set variables securely
+export NEWT_CLIENT_ID="prod-client"
+export NEWT_CLIENT_SECRET="prod-secret"
+export NEWT_ENDPOINT="https://prod.example.com"
+
+# Install
+chmod +x newt-manager.sh
+sudo -E ./newt-manager.sh install
+
+# Verify deployment
+sudo systemctl is-active newt.service && echo "Service is running"
+sudo journalctl -u newt --since "5 minutes ago"
+```
 

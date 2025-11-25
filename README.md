@@ -28,7 +28,7 @@ sudo -E bash newt-manager.sh install --env
 ### Installation (One-liner)
 
 ```bash
-curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo bash -s install
+curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install --env
 ```
 
 ## Commands

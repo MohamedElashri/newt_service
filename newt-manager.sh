@@ -203,7 +203,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/etc/newt/config
-ExecStart=/bin/bash -c 'newt --id "${CLIENT_ID}" --secret "${CLIENT_SECRET}" --endpoint "${ENDPOINT}" --accept-clients'
+ExecStart=/bin/bash -c 'newt --id "${CLIENT_ID}" --secret "${CLIENT_SECRET}" --endpoint "${ENDPOINT}"'
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/newt/newt.log

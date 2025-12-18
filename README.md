@@ -1,36 +1,60 @@
 # Newt Service Manager
 
-Complete automation for running Newt Pangolin as a persistent Linux service with automatic updates.
+Complete automation for running multiple Newt Pangolin instances as persistent Linux services with automatic updates.
+
+## Quick Reference
+
+```bash
+# Install first instance
+sudo ./newt-manager.sh install prod
+
+# Add more instances
+sudo ./newt-manager.sh add dev
+sudo ./newt-manager.sh add backup
+
+# List all instances
+sudo ./newt-manager.sh list
+
+# Control instances
+sudo ./newt-manager.sh start prod
+sudo ./newt-manager.sh stop prod
+sudo ./newt-manager.sh restart prod
+sudo ./newt-manager.sh status prod
+sudo ./newt-manager.sh logs prod -f
+
+# Remove an instance
+sudo ./newt-manager.sh remove dev
+```
 
 ## Quick Start
 
-### Installation Methods
+### First Installation
 
-The script supports three installation methods:
+#### 1. Interactive Mode (Recommended)
 
-#### 1. Interactive Mode (Manual Entry)
-
-Download and run the script, then enter credentials when prompted:
+Download and run the script with an instance name:
 
 ```bash
 curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh -o newt-manager.sh
 chmod +x newt-manager.sh
-sudo ./newt-manager.sh install
+sudo ./newt-manager.sh install prod
 ```
 
 You'll be prompted to enter:
+- Instance name (e.g., `prod`, `dev`, `backup`)
 - Client ID
 - Client Secret
 - Endpoint
 
 #### 2. Environment Variables (Auto-Detected)
 
-The script automatically detects environment variables without needing any flags:
+The script automatically detects environment variables:
 
 ```bash
 export NEWT_CLIENT_ID="your-client-id"
 export NEWT_CLIENT_SECRET="your-secret"
 export NEWT_ENDPOINT="your-endpoint"
+export NEWT_INSTANCE_NAME="prod"  # Optional, defaults to "default"
 
 # One-liner installation
 curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/newt-manager.sh | sudo -E bash -s install
@@ -40,8 +64,6 @@ curl -fsSL https://github.com/MohamedElashri/newt_service/raw/refs/heads/main/ne
 
 #### 3. Environment Variables (Explicit Flag)
 
-Explicitly specify to use environment variables:
-
 ```bash
 export NEWT_CLIENT_ID="your-client-id"
 export NEWT_CLIENT_SECRET="your-secret"
@@ -50,41 +72,65 @@ export NEWT_ENDPOINT="your-endpoint"
 sudo -E bash newt-manager.sh install --env
 ```
 
-### Installation Priority
+### Adding More Instances
 
-The script checks for configuration in this order:
-1. Environment variables (if set) - auto-detected
-2. `--env` flag (if provided)
-3. Interactive mode (if no environment variables)
+After initial installation, add additional Pangolin instances:
+
+```bash
+# Interactive mode
+sudo bash newt-manager.sh add backup
+
+# With environment variables
+export NEWT_CLIENT_ID="backup-client-id"
+export NEWT_CLIENT_SECRET="backup-secret"
+export NEWT_ENDPOINT="backup-endpoint"
+sudo -E bash newt-manager.sh add backup
+```
 
 ## Commands
 
-### Service Management
+### Instance Management
 
 ```bash
-# View service status
+# List all configured instances
+sudo bash newt-manager.sh list
+
+# Add a new instance
+sudo bash newt-manager.sh add <instance-name>
+
+# Remove an instance
+sudo bash newt-manager.sh remove <instance-name>
+```
+
+### Service Control
+
+```bash
+# View status of all instances
 sudo bash newt-manager.sh status
 
+# View status of specific instance
+sudo bash newt-manager.sh status prod
+
+# Start an instance
+sudo bash newt-manager.sh start prod
+
+# Stop an instance
+sudo bash newt-manager.sh stop prod
+
+# Restart an instance
+sudo bash newt-manager.sh restart prod
+
 # View logs (last 50 lines)
-sudo bash newt-manager.sh logs
+sudo bash newt-manager.sh logs prod
 
 # Follow logs in real-time
-sudo bash newt-manager.sh logs -f
-
-# Restart service
-sudo bash newt-manager.sh restart
-
-# Start service
-sudo bash newt-manager.sh start
-
-# Stop service
-sudo bash newt-manager.sh stop
+sudo bash newt-manager.sh logs prod -f
 ```
 
 ### Updates
 
 ```bash
-# Manually trigger update
+# Manually trigger update for all instances
 sudo bash newt-manager.sh update
 
 # Check update timer status
@@ -94,7 +140,7 @@ systemctl status newt-updater.timer
 ### Uninstallation
 
 ```bash
-# Uninstall (keep configuration)
+# Uninstall all instances (keep configuration)
 sudo bash newt-manager.sh uninstall
 
 # Uninstall and remove everything
@@ -106,49 +152,70 @@ sudo bash newt-manager.sh uninstall --purge
 ### Using systemctl directly
 
 ```bash
-# Status
-systemctl status newt
+# For specific instances
+systemctl status newt@prod.service
+systemctl start newt@prod.service
+systemctl stop newt@prod.service
+systemctl restart newt@prod.service
 
-# Start/Stop/Restart
-systemctl start newt
-systemctl stop newt
-systemctl restart newt
+# Enable/Disable auto-start for instances
+systemctl enable newt@prod.service
+systemctl disable newt@prod.service
 
-# Enable/Disable auto-start
-systemctl enable newt
-systemctl disable newt
+# View logs for specific instance
+journalctl -u newt@prod.service -f
+journalctl -u newt@prod.service --since today
+journalctl -u newt@prod.service --since "1 hour ago"
 
-# View logs
-journalctl -u newt -f
-journalctl -u newt --since today
-journalctl -u newt --since "1 hour ago"
+# View logs from all instances
+journalctl -u 'newt@*' -f
 ```
 
 ### File Locations
 
 ```
-/etc/newt/config                      - Configuration file
-/var/log/newt/newt.log               - Service logs
-/var/log/newt/updater.log            - Update logs
-/usr/local/bin/newt                  - Newt binary
-/usr/local/bin/newt-updater          - Update script
-/etc/systemd/system/newt.service     - Systemd service
-/etc/systemd/system/newt-updater.*   - Update timer/service
+/etc/newt/
+├── instances/
+│   ├── prod                          - Instance configuration
+│   ├── dev                           - Instance configuration
+│   └── backup                        - Instance configuration
+
+/var/log/newt/
+├── prod.log                          - Instance logs
+├── dev.log                           - Instance logs
+├── backup.log                        - Instance logs
+└── updater.log                       - Update logs
+
+/usr/local/bin/newt                   - Newt binary
+/usr/local/bin/newt-updater           - Update script (handles all instances)
+
+/etc/systemd/system/
+├── newt@.service                     - Service template
+├── newt-updater.service              - Update service
+└── newt-updater.timer                - Update timer
 ```
 
 ## Configuration
 
-Configuration is stored in `/etc/newt/config`:
+Each instance configuration is stored in `/etc/newt/instances/<instance-name>`:
 
 ```bash
+# Example: /etc/newt/instances/prod
 CLIENT_ID="your-client-id"
 CLIENT_SECRET="your-secret"
 ENDPOINT="your-endpoint"
 ```
 
-To update configuration:
-1. Edit the file: `sudo nano /etc/newt/config`
-2. Restart service: `sudo systemctl restart newt`
+To update an instance configuration:
+1. Edit the file: `sudo nano /etc/newt/instances/prod`
+2. Restart instance: `sudo systemctl restart newt@prod.service`
+
+Or use the script:
+```bash
+# Remove and re-add with new configuration
+sudo ./newt-manager.sh remove prod
+sudo ./newt-manager.sh add prod
+```
 
 ## Automatic Updates
 
@@ -253,16 +320,119 @@ curl ... | sudo -E bash -s install
 
 ## Advanced Usage
 
-### Running multiple instances
+### Managing Multiple Instances
 
-To run multiple newt instances with different configurations:
+The script natively supports running multiple Pangolin instances simultaneously. Each instance has its own configuration, logs, and can be controlled independently.
 
-1. Copy the script: `cp newt-manager.sh newt-manager-2.sh`
-2. Edit the script and change:
-   - `CONFIG_DIR="/etc/newt2"`
-   - `SERVICE_FILE="/etc/systemd/system/newt2.service"`
-   - `LOG_DIR="/var/log/newt2"`
-3. Install: `sudo bash newt-manager-2.sh install`
+#### Use Cases
+
+- **High Availability**: Run multiple connections for redundancy
+- **Multiple Environments**: Separate `prod`, `dev`, and `staging` instances
+- **Load Distribution**: Distribute workload across multiple endpoints
+- **Testing**: Test new configurations without affecting production
+
+#### Configuration Structure
+
+```
+/etc/newt/
+├── instances/
+│   ├── prod          # Production instance config
+│   ├── dev           # Development instance config
+│   └── backup        # Backup instance config
+└── ...
+
+/var/log/newt/
+├── prod.log          # Production logs
+├── dev.log           # Development logs
+└── backup.log        # Backup logs
+```
+
+#### Systemd Services
+
+Each instance runs as a separate systemd service using a template unit:
+
+```bash
+# Template service
+/etc/systemd/system/newt@.service
+
+# Instance services (automatically created)
+newt@prod.service
+newt@dev.service
+newt@backup.service
+```
+
+#### Complete Multi-Instance Example
+
+```bash
+# Install first instance (prod)
+export NEWT_CLIENT_ID="prod-client-id"
+export NEWT_CLIENT_SECRET="prod-secret"
+export NEWT_ENDPOINT="prod-endpoint"
+export NEWT_INSTANCE_NAME="prod"
+sudo -E ./newt-manager.sh install
+
+# Add development instance
+export NEWT_CLIENT_ID="dev-client-id"
+export NEWT_CLIENT_SECRET="dev-secret"
+export NEWT_ENDPOINT="dev-endpoint"
+sudo -E ./newt-manager.sh add dev
+
+# Add backup instance interactively
+sudo ./newt-manager.sh add backup
+
+# List all instances
+sudo ./newt-manager.sh list
+
+# Control specific instances
+sudo ./newt-manager.sh start prod
+sudo ./newt-manager.sh stop dev
+sudo ./newt-manager.sh restart backup
+
+# View instance-specific logs
+sudo ./newt-manager.sh logs prod -f
+
+# Check specific instance status
+sudo ./newt-manager.sh status prod
+
+# Remove an instance
+sudo ./newt-manager.sh remove dev
+```
+
+#### Using systemctl Directly with Instances
+
+```bash
+# Control specific instances
+systemctl status newt@prod.service
+systemctl start newt@dev.service
+systemctl stop newt@backup.service
+systemctl restart newt@prod.service
+
+# View logs for specific instance
+journalctl -u newt@prod.service -f
+
+# Enable/disable auto-start
+systemctl enable newt@prod.service
+systemctl disable newt@backup.service
+
+# Check all running newt instances
+systemctl list-units 'newt@*'
+```
+
+#### Monitoring Multiple Instances
+
+```bash
+# Check status of all instances
+sudo ./newt-manager.sh status
+
+# View logs from all instances simultaneously (requires multitail)
+sudo multitail /var/log/newt/*.log
+
+# Or using journalctl
+sudo journalctl -u 'newt@*' -f
+
+# Check which instances are active
+systemctl list-units --state=active 'newt@*'
+```
 
 ### Automated deployment example
 

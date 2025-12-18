@@ -25,29 +25,29 @@ UPDATE_SCRIPT="/usr/local/bin/newt-updater"
 UPDATE_SERVICE="${SERVICE_DIR}/newt-updater.service"
 UPDATE_TIMER="${SERVICE_DIR}/newt-updater.timer"
 
-# Logging functions
+# Logging functions (output to stderr to not interfere with command substitution)
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
     logger -t newt-manager "INFO: $1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
     logger -t newt-manager "SUCCESS: $1"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
     logger -t newt-manager "WARNING: $1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
     logger -t newt-manager "ERROR: $1"
 }
 
 log_step() {
-    echo -e "${MAGENTA}[STEP]${NC} ${BOLD}$1${NC}"
+    echo -e "${MAGENTA}[STEP]${NC} ${BOLD}$1${NC}" >&2
 }
 
 # Check if running as root
@@ -205,11 +205,11 @@ configure_interactive() {
     
     log_step "Configuring newt instance..."
     
-    echo -e "${CYAN}${BOLD}Enter Newt Configuration${NC}"
-    echo ""
+    echo -e "${CYAN}${BOLD}Enter Newt Configuration${NC}" >&2
+    echo "" >&2
     
     if [[ -z "$instance_name" ]]; then
-        read -p "Instance name (e.g., prod, dev, backup): " instance_name
+        read -p "Instance name (e.g., prod, dev, backup): " instance_name >&2
         instance_name=$(echo "$instance_name" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-_')
         
         if [[ -z "$instance_name" ]]; then
@@ -222,18 +222,18 @@ configure_interactive() {
     
     if [[ -f "$config_file" ]]; then
         log_warning "Instance '$instance_name' already exists"
-        read -p "Overwrite? (y/N): " -n 1 -r
-        echo
+        read -p "Overwrite? (y/N): " -n 1 -r >&2
+        echo >&2
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             log_info "Aborted"
             exit 0
         fi
     fi
     
-    read -p "Client ID: " CLIENT_ID
-    read -sp "Client Secret: " CLIENT_SECRET
-    echo ""
-    read -p "Endpoint: " ENDPOINT
+    read -p "Client ID: " CLIENT_ID >&2
+    read -sp "Client Secret: " CLIENT_SECRET >&2
+    echo "" >&2
+    read -p "Endpoint: " ENDPOINT >&2
     
     # Validate inputs
     if [[ -z "$CLIENT_ID" ]] || [[ -z "$CLIENT_SECRET" ]] || [[ -z "$ENDPOINT" ]]; then
@@ -252,6 +252,7 @@ EOF
     chmod 600 "$config_file"
     log_success "Configuration saved for instance '$instance_name'"
     
+    # Output only the instance name to stdout for capture
     echo "$instance_name"
 }
 
@@ -440,7 +441,7 @@ install() {
     local instance_name="$1"
     
     log_info "${BOLD}Starting Newt Service Installation${NC}"
-    echo ""
+    echo "" >&2
     
     check_root
     detect_distro
@@ -463,16 +464,16 @@ install() {
     create_updater
     start_service "$instance_name"
     
-    echo ""
+    echo "" >&2
     log_success "${BOLD}Installation completed successfully!${NC}"
-    echo ""
-    echo -e "${CYAN}Useful commands:${NC}"
-    echo -e "  ${GREEN}$0 status $instance_name${NC}        - Check instance status"
-    echo -e "  ${GREEN}$0 restart $instance_name${NC}       - Restart instance"
-    echo -e "  ${GREEN}$0 logs $instance_name -f${NC}       - View live logs"
-    echo -e "  ${GREEN}$0 list${NC}                          - List all instances"
-    echo -e "  ${GREEN}$0 add${NC}                           - Add another instance"
-    echo ""
+    echo "" >&2
+    echo -e "${CYAN}Useful commands:${NC}" >&2
+    echo -e "  ${GREEN}$0 status $instance_name${NC}        - Check instance status" >&2
+    echo -e "  ${GREEN}$0 restart $instance_name${NC}       - Restart instance" >&2
+    echo -e "  ${GREEN}$0 logs $instance_name -f${NC}       - View live logs" >&2
+    echo -e "  ${GREEN}$0 list${NC}                          - List all instances" >&2
+    echo -e "  ${GREEN}$0 add${NC}                           - Add another instance" >&2
+    echo "" >&2
 }
 
 # Add new instance
@@ -480,7 +481,7 @@ add_instance() {
     local instance_name="$1"
     
     log_info "${BOLD}Adding New Newt Instance${NC}"
-    echo ""
+    echo "" >&2
     
     check_root
     
@@ -505,9 +506,9 @@ add_instance() {
     create_service "$instance_name"
     start_service "$instance_name"
     
-    echo ""
+    echo "" >&2
     log_success "${BOLD}Instance '$instance_name' added successfully!${NC}"
-    echo ""
+    echo "" >&2
 }
 
 # Remove instance
@@ -532,7 +533,7 @@ remove_instance() {
     fi
     
     log_info "${BOLD}Removing instance '$instance'${NC}"
-    echo ""
+    echo "" >&2
     
     # Stop and disable service
     log_step "Stopping service..."
@@ -544,8 +545,8 @@ remove_instance() {
     rm -f "$config_file"
     
     # Ask about logs
-    read -p "Remove logs for this instance? (y/N): " -n 1 -r
-    echo
+    read -p "Remove logs for this instance? (y/N): " -n 1 -r >&2
+    echo >&2
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm -f "$log_file"
         log_success "Logs removed"
@@ -553,14 +554,14 @@ remove_instance() {
     
     systemctl daemon-reload
     
-    echo ""
+    echo "" >&2
     log_success "${BOLD}Instance '$instance' removed${NC}"
 }
 
 # Uninstall command
 uninstall() {
     log_info "${BOLD}Starting Newt Service Uninstallation${NC}"
-    echo ""
+    echo "" >&2
     
     check_root
     
@@ -593,14 +594,14 @@ uninstall() {
         rm -rf "$CONFIG_DIR"
         rm -rf "$LOG_DIR"
     else
-        echo -e "${YELLOW}Configuration kept at: $CONFIG_DIR${NC}"
-        echo -e "${YELLOW}Logs kept at: $LOG_DIR${NC}"
-        echo -e "${CYAN}Use 'uninstall --purge' to remove everything${NC}"
+        echo -e "${YELLOW}Configuration kept at: $CONFIG_DIR${NC}" >&2
+        echo -e "${YELLOW}Logs kept at: $LOG_DIR${NC}" >&2
+        echo -e "${CYAN}Use 'uninstall --purge' to remove everything${NC}" >&2
     fi
     
     # Remove newt binary (optional)
-    read -p "Remove newt binary? (y/N): " -n 1 -r
-    echo
+    read -p "Remove newt binary? (y/N): " -n 1 -r >&2
+    echo >&2
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm -f "$NEWT_BINARY"
         log_success "Newt binary removed"
@@ -608,7 +609,7 @@ uninstall() {
     
     systemctl daemon-reload
     
-    echo ""
+    echo "" >&2
     log_success "${BOLD}Uninstallation completed${NC}"
 }
 

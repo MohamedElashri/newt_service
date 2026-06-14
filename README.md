@@ -274,7 +274,7 @@ newt --version
 ### Reinstall newt
 
 ```bash
-curl -fsSL https://digpangolin.com/get-newt.sh | bash
+curl -fsSL https://static.pangolin.net/get-newt.sh | bash
 sudo systemctl restart newt
 ```
 
